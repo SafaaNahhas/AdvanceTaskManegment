@@ -74,36 +74,7 @@ class UserController extends Controller
         }
     }
 
-    // /**
-    //  * Update a user's details.
-    //  *
-    //  * @param Request $request
-    //  * @param int $userId
-    //  * @return \Illuminate\Http\JsonResponse
-    //  */
-    // public function updateUser(Request $request, $userId)
-    // {
-    //     try {
-    //         // Validate request
-    //         $request->validate([
-    //             'name' => 'nullable|string|max:255',
-    //             'email' => 'nullable|email|unique:users,email,' . $userId,
-    //             'role' => 'nullable|exists:roles,name',
-    //         ]);
 
-    //         // Update user
-    //         $user = $this->userService->updateUser($userId, $request->all());
-
-    //         if ($request->role) {
-    //             // Update role if provided
-    //             $this->userService->assignRole($user->id, $request->role);
-    //         }
-
-    //         return response()->json(['message' => 'User updated successfully.', 'user' => $user], 200);
-    //     } catch (Exception $e) {
-    //         return response()->json(['message' => $e->getMessage()], 500);
-    //     }
-    // }
 /**
  * Update a user's details.
  *
@@ -114,7 +85,7 @@ class UserController extends Controller
 public function updateUser(UpdateUserRequest $request, $userId)
 {
     try {
-      
+
         $user = $this->userService->updateUser($userId, $request->validated());
 
         if ($request->role) {
