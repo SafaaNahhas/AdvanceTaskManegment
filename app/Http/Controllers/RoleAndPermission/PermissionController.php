@@ -2,45 +2,81 @@
 
 namespace App\Http\Controllers\RoleAndPermission;
 
-use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Spatie\Permission\Models\Permission;
+use App\Services\PermissionService;
 use App\Http\Requests\PermissionRequest\PermissionRequest;
+use Exception;
 
 class PermissionController extends Controller
 {
-     public function store(PermissionRequest $request)
-     {
+    protected $permissionService;
 
+    public function __construct(PermissionService $permissionService)
+    {
+        $this->permissionService = $permissionService;
+    }
 
-         $permission = Permission::create(['name' => $request->name]);
+    /**
+     * Store a new permission.
+     *
+     * @param \App\Http\Requests\PermissionRequest\PermissionRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function store(PermissionRequest $request)
+    {
+        try {
+            $permission = $this->permissionService->createPermission($request->name);
+            return response()->json(['message' => 'تم إنشاء الصلاحية بنجاح', 'permission' => $permission], 201);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
-         return response()->json(['message' => 'تم إنشاء الصلاحية بنجاح', 'permission' => $permission], 201);
-     }
+    /**
+     * Update an existing permission.
+     *
+     * @param \App\Http\Requests\PermissionRequest\PermissionRequest $request
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function update(PermissionRequest $request, $id)
+    {
+        try {
+            $permission = $this->permissionService->updatePermission($id, $request->name);
+            return response()->json(['message' => 'تم تحديث الصلاحية بنجاح', 'permission' => $permission], 200);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
-     public function update(PermissionRequest $request, $id)
-     {
-         $permission = Permission::findOrFail($id);
+    /**
+     * Delete a permission.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function destroy($id)
+    {
+        try {
+            $this->permissionService->deletePermission($id);
+            return response()->json(['message' => 'تم حذف الصلاحية بنجاح'], 200);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
-
-
-         $permission->name = $request->name;
-         $permission->save();
-
-         return response()->json(['message' => 'تم تحديث الصلاحية بنجاح', 'permission' => $permission], 200);
-     }
-
-     public function destroy($id)
-     {
-         $permission = Permission::findOrFail($id);
-         $permission->delete();
-
-         return response()->json(['message' => 'تم حذف الصلاحية بنجاح'], 200);
-     }
-
-     public function index()
-     {
-         $permissions = Permission::all();
-         return response()->json(['permissions' => $permissions], 200);
-     }
+    /**
+     * Get all permissions.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function index()
+    {
+        try {
+            $permissions = $this->permissionService->getAllPermissions();
+            return response()->json(['permissions' => $permissions], 200);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 }

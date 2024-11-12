@@ -5,14 +5,12 @@ namespace App\Http\Controllers\TaskManagment;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use App\Services\TaskService;
-use App\Models\TaskStatusUpdate;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\TaskResource;
 use App\Http\Requests\TaskRequest\StoreTaskRequest;
 use App\Http\Requests\TaskRequest\AssignTaskRequest;
 use App\Http\Requests\TaskRequest\UpdateTaskRequest;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 class TaskController extends Controller
 {
@@ -41,11 +39,24 @@ class TaskController extends Controller
      * @param StoreTaskRequest $request
      * @return \Illuminate\Http\JsonResponse
      */
+    // public function store(StoreTaskRequest $request)
+    // {
+    //         $task = $this->taskService->storeTask($request->validated());
+
+    //         return response()->json($task, 201);
+    // }
     public function store(StoreTaskRequest $request)
     {
+        try {
+            // Call the storeTask method to create the task
             $task = $this->taskService->storeTask($request->validated());
 
-            return response()->json($task, 201);
+            // Return a JSON response with task data and 201 Created status
+            return response()->json($task, 201);  // Make sure the status code is 201
+        } catch (BadRequestHttpException $e) {
+            // If an error occurs, return an error message with a proper status code
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
     }
 
     /**
@@ -85,7 +96,7 @@ class TaskController extends Controller
     public function index(Request $request)
     {
 
-            $filters = $request->only(['type', 'status', 'priority', 'assigned_to', 'due_date', 'depends_on']);
+            $filters = $request->only(['type', 'status', 'priority', 'assigned_to', 'due_date', 'depends_on','created_by']);
             $tasks = $this->taskService->indexTasks($filters);
 
             return response()->json($tasks, 200);
@@ -101,8 +112,10 @@ class TaskController extends Controller
     public function dailyTasksReport(Request $request)
     {
 
-            return $this->taskService->dailyTasksReport();
+            // return $this->taskService->dailyTasksReport();
 
+                $tasks = $this->taskService->dailyTasksReport();
+                return response()->json($tasks);
     }
 
     /**

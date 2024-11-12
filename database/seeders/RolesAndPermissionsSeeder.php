@@ -50,7 +50,9 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::create(['name' => $permission]);
     }
 
-    $roleAdmin = Role::create(['name' => 'admin']);
+    // $roleAdmin = Role::create(['name' => 'admin']);
+    $roleAdmin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'api']);
+
     $roleAdmin->givePermissionTo(Permission::all());
 
     $roleManager = Role::create(['name' => 'manager']);

@@ -34,7 +34,7 @@ class TaskResource extends JsonResource
            }),
             // 'dependencies' => DependencyResource::collection($this->whenLoaded('dependencies')),
             'dependencies' => $this->whenLoaded('dependencies', function () {
-                return $this->dependencies->pluck('title');
+                return $this->dependencies->pluck('id');
             }),
         ];    }
 }

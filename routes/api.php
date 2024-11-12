@@ -8,6 +8,7 @@ use App\Http\Controllers\TaskManagment\TaskController;
 use App\Http\Controllers\TaskManagment\ReportController;
 use App\Http\Controllers\TaskManagment\CommentController;
 use App\Http\Controllers\RoleAndPermission\RoleController;
+use App\Http\Controllers\RoleAndPermission\UserController;
 use App\Http\Controllers\TaskManagment\AttachmentController;
 use App\Http\Controllers\RoleAndPermission\UserRoleController;
 use App\Http\Controllers\RoleAndPermission\PermissionController;
@@ -30,7 +31,7 @@ use App\Http\Controllers\TaskManagment\TaskStatusUpdateController;
 
 Route::middleware(  StartSession::class)->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:register', 'role:admin');
 });
 
 
@@ -39,33 +40,37 @@ Route::middleware(['auth:api', 'role:admin'])->group(function () {
     Route::put('/roles/{id}', [RoleController::class, 'update']);
     Route::delete('/roles/{id}', [RoleController::class, 'destroy']);
     Route::get('/roles', [RoleController::class, 'index']);
-    Route::post('roles/{roleId}/permissions', [RoleController::class, 'assignPermissions']); // Assign permissions to role
+    Route::post('roles/{roleId}/permissions', [RoleController::class, 'assignPermission']); // Assign permissions to role
     Route::delete('roles/{roleId}/permissions/{permissionId}', [RoleController::class, 'removePermission']); // Remove permission from role
     Route::post('/permissions', [PermissionController::class, 'store']);
     Route::put('/permissions/{id}', [PermissionController::class, 'update']);
     Route::delete('/permissions/{id}', [PermissionController::class, 'destroy']);
     Route::get('/permissions', [PermissionController::class, 'index']);
-
-    Route::post('/users/{id}/roles', [UserRoleController::class, 'assignRole']);
-    Route::delete('/users/{id}/roles', [UserRoleController::class, 'removeRole']);
-    Route::get('/users/{id}/roles', [UserRoleController::class, 'getUserRoles']);
+    Route::post('/users', [UserController::class, 'createUser']);
+    Route::get('/users', [UserController::class, 'getUsers']);
+    Route::get('users/{id}', [UserController::class, 'getUser']);
+    Route::put('users/{id}', [UserController::class, 'updateUser']);
+    Route::delete('users/{id}', [UserController::class, 'deleteUser']);
 });
 
 
 
 
-
 Route::middleware(['auth:api','throttle:api',StartSession::class])->group(function () {
+
+// Route::middleware('auth:api')->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::post('refresh', [AuthController::class, 'refresh']);
+    Route::post('/tasks/{id}/attachments', [AttachmentController::class, 'store'])->middleware('permission:upload attachments');
 
     Route::get('tasks/trashed', [TaskController::class, 'trashedTasks'])->middleware('permission:trashedTasks');
     Route::get('/tasks/blocked', [TaskController::class, 'blockedTasks'])->middleware('permission:view tasks');
+    Route::get('/tasks/{id}', [TaskController::class, 'show'])->middleware('permission:view task');
 
     Route::post('/tasks', [TaskController::class, 'store'])->middleware('permission:store task');
     Route::put('/tasks/{id}/reassign', [TaskController::class, 'reassign'])->middleware('permission:reassign task');
     Route::post('/tasks/{id}/assign', [TaskController::class, 'assign'])->middleware('permission:assign task');
-    Route::get('/tasks/{id}', [TaskController::class, 'show'])->middleware('permission:view task');
+    // Route::get('/tasks/{id}', [TaskController::class, 'show'])->middleware('permission:view task');
     Route::get('/tasks', [TaskController::class, 'index'])->middleware('permission:view tasks');
 
     Route::post('/tasks/{id}/comments', [CommentController::class, 'store'])->middleware('permission:create comments');
@@ -76,7 +81,6 @@ Route::middleware(['auth:api','throttle:api',StartSession::class])->group(functi
     Route::get('/tasks/{taskId}/comments/deleted', [CommentController::class, 'showDeleted']);
     Route::post('/tasks/{taskId}/comments/{commentId}/restore', [CommentController::class, 'restore']);
 
-    Route::post('/tasks/{id}/attachments', [AttachmentController::class, 'store'])->middleware('permission:upload attachments');
     Route::get('/attachments/download/{attachmentId}', [AttachmentController::class, 'download'])->middleware('permission:download attachments');
 
     Route::post('/tasks/{task}/attachments/{attachment}/update', [AttachmentController::class, 'update']);
@@ -96,7 +100,8 @@ Route::middleware(['auth:api','throttle:api',StartSession::class])->group(functi
      Route::delete('tasks/{id}', [TaskController::class, 'destroy'])->middleware('permission:destroy tasks');
 
      Route::delete('tasks/force-delete/{id}', [TaskController::class, 'forceDelete'])->middleware('permission:forceDelete tasks');
-     Route::put('/tasks/{id}', [TaskController::class, 'update'])->middleware('permission:update task');
+     Route::put('/tasks/{id}', [TaskController::class, 'update']);
+    //  ->middleware('permission:update task');
 
 
      Route::get('/reports/completed-tasks', [TaskController::class, 'getCompletedTasks']);

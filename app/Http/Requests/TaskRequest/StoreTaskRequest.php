@@ -22,7 +22,7 @@ class StoreTaskRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title'         => 'required|string|max:255|unique:tasks,title|regex:/^[a-zA-Z0-9\s\-]+$/',
+            'title'         => 'required|string|max:255|unique:tasks,title|regex:/^[a-zA-Z0-9\s]+$/',
             'description'   => 'nullable|string|max:1000',
             'type'          => 'required|in:Bug,Feature,Improvement',
             'priority'      => 'required|in:Low,Medium,High',
@@ -38,21 +38,22 @@ class StoreTaskRequest extends FormRequest
      * @return array
      */
     public function messages()
-    {
-        return [
-            'title.required' => 'عنوان المهمة مطلوب.',
-            'title.unique' => 'عنوان المهمة يجب أن يكون فريدًا.',
-            'title.regex' => 'عنوان المهمة يحتوي على أحرف غير مسموح بها.',
-            'type.required' => 'نوع المهمة مطلوب.',
-            'type.in' => 'نوع المهمة غير صالح. يجب أن يكون Bug، Feature، أو Improvement.',
-            'priority.required' => 'أولوية المهمة مطلوبة.',
-            'priority.in' => 'أولوية المهمة غير صالحة. يجب أن تكون Low، Medium، أو High.',
-            'due_date.date' => 'تاريخ الاستحقاق يجب أن يكون تاريخًا صالحًا.',
-            'due_date.after_or_equal' => 'تاريخ الاستحقاق يجب أن يكون في المستقبل أو اليوم.',
-            'due_date.required' => 'تاريخ الاستحقاق مطلوب',
-            'assigned_to.exists' => 'المستخدم المحدد غير موجود.',
-            'dependencies.array' => 'الاعتماديات يجب أن تكون مصفوفة.',
-            'dependencies.*.exists' => 'إحدى الاعتماديات المحددة غير موجودة.',
-        ];
-    }
+{
+    return [
+        'title.required' => 'The title field is required.',
+        'title.unique' => 'The title must be unique.',
+        'title.regex' => 'The title contains invalid characters.',
+        'type.required' => 'The task type is required.',
+        'type.in' => 'The selected type is invalid. It must be Bug, Feature, or Improvement.',
+        'priority.required' => 'The task priority is required.',
+        'priority.in' => 'The selected priority is invalid. It must be Low, Medium, or High.',
+        'due_date.date' => 'The due date must be a valid date.',
+        'due_date.after_or_equal' => 'The due date must be today or in the future.',
+        'due_date.required' => 'The due date is required.',
+        'assigned_to.exists' => 'The selected user does not exist.',
+        'dependencies.array' => 'The dependencies must be an array.',
+        'dependencies.*.exists' => 'One of the selected dependencies does not exist.',
+    ];
+}
+
 }

@@ -28,14 +28,18 @@ class AttachmentService
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
             $this->validateFile($file);
+            Log::info('File validation passed.');
 
             // Virus check
             if (!$this->scanFileWithVirusTotal($file)) {
                 throw new Exception('Virus detected in the file.');
             }
+            Log::info('Virus scan passed.');
 
             // Generate a safe file name and encrypt the content
             $filePath = $this->storeEncryptedFile($file);
+            Log::info('File stored successfully.', ['filePath' => $filePath]);
+
             return $task->attachments()->create([
                 'file_path' => $filePath,
                 'file_type' => $file->getClientMimeType(),
@@ -89,47 +93,57 @@ class AttachmentService
     }
 
     /**
-     * Scan file with VirusTotal for viruses.
-     *
-     * @param \Illuminate\Http\UploadedFile $file
-     * @return bool
-     * @throws Exception
-     */
-    private function scanFileWithVirusTotal($file)
-    {
-        // Get the API key
-        $apiKey = config('services.virustotal.api_key');
-        if (!$apiKey) {
-            throw new Exception('VirusTotal API key not found.');
-        }
-
-        // Read file content
-        $fileContent = file_get_contents($file->getRealPath());
-
-        // Send the file to VirusTotal
-        $response = Http::withHeaders(['x-apikey' => $apiKey])->attach('file', $fileContent, $file->getClientOriginalName())->post('https://www.virustotal.com/api/v3/files');
-
-        if ($response->failed()) {
-            throw new Exception('Failed to connect to VirusTotal.');
-        }
-
-        $fileId = $response->json()['data']['id'] ?? null;
-        if (!$fileId) {
-            throw new Exception('Failed to get file ID from VirusTotal.');
-        }
-
-        // Wait for analysis
-        sleep(15);
-
-        // Get analysis results
-        $analysisResponse = Http::withHeaders(['x-apikey' => $apiKey])->get("https://www.virustotal.com/api/v3/analyses/{$fileId}");
-        if ($analysisResponse->failed()) {
-            throw new Exception('Failed to get analysis results from VirusTotal.');
-        }
-
-        $maliciousCount = $analysisResponse->json()['data']['attributes']['stats']['malicious'] ?? 0;
-        return $maliciousCount === 0;
+ * Scan file with VirusTotal for viruses.
+ *
+ * @param \Illuminate\Http\UploadedFile $file
+ * @return bool
+ * @throws Exception
+ */
+private function scanFileWithVirusTotal($file)
+{
+    set_time_limit(180);
+    // Get the API key
+    $apiKey = config('services.virustotal.api_key');
+    if (!$apiKey) {
+        throw new Exception('VirusTotal API key not found.');
     }
+
+    // Read file content
+    $fileContent = file_get_contents($file->getRealPath());
+
+    // Send the file to VirusTotal with timeout and retry settings
+    $response = Http::timeout(120) // تحديد المهلة الزمنية بـ 120 ثانية
+        ->retry(3, 5000) // إعادة المحاولة 3 مرات مع انتظار 5 ثواني بين المحاولات
+        ->withHeaders(['x-apikey' => $apiKey])
+        ->attach('file', $fileContent, $file->getClientOriginalName())
+        ->post('https://www.virustotal.com/api/v3/files');
+
+    if ($response->failed()) {
+        throw new Exception('Failed to connect to VirusTotal.');
+    }
+
+    $fileId = $response->json()['data']['id'] ?? null;
+    if (!$fileId) {
+        throw new Exception('Failed to get file ID from VirusTotal.');
+    }
+
+    // Wait for analysis
+    sleep(15);
+
+    // Get analysis results with timeout and retry settings
+    $analysisResponse = Http::timeout(120)
+        ->retry(3, 5000)
+        ->withHeaders(['x-apikey' => $apiKey])
+        ->get("https://www.virustotal.com/api/v3/analyses/{$fileId}");
+
+    if ($analysisResponse->failed()) {
+        throw new Exception('Failed to get analysis results from VirusTotal.');
+    }
+
+    $maliciousCount = $analysisResponse->json()['data']['attributes']['stats']['malicious'] ?? 0;
+    return $maliciousCount === 0;
+}
+
 
     /**
      * Store the encrypted file content.
@@ -182,23 +196,45 @@ class AttachmentService
         return response()->json(['error' => 'Failed to download attachment'], 500);
     }
 }
- /**
-     * Replace the file for a task (Update).
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \App\Models\Task $task
-     * @param \App\Models\Attachment $attachment
-     * @return \App\Models\Attachment
-     * @throws Exception
-     */
-    public function updateFile($request, Task $task, Attachment $attachment)
-    {
-        // Delete the existing file
-        Storage::disk('local')->delete($attachment->file_path);
 
-        // Handle new file upload
-        return $this->handleFileUpload($request, $task);
+/**
+ * Replace the file for a task (Update).
+ *
+ * @param \Illuminate\Http\Request $request
+ * @param \App\Models\Task $task
+ * @param \App\Models\Attachment $attachment
+ * @return \App\Models\Attachment
+ * @throws Exception
+ */
+public function updateFile($request, Task $task, Attachment $attachment)
+{
+    Storage::disk('local')->delete($attachment->file_path);
+
+    if ($request->hasFile('attachment')) {
+        $file = $request->file('attachment');
+
+        $this->validateFile($file);
+        Log::info('File validation passed for update.');
+
+        if (!$this->scanFileWithVirusTotal($file)) {
+            throw new Exception('Virus detected in the file.');
+        }
+        Log::info('Virus scan passed for update.');
+
+        $filePath = $this->storeEncryptedFile($file);
+        Log::info('File stored successfully for update.', ['filePath' => $filePath]);
+
+        $attachment->update([
+            'file_path' => $filePath,
+            'file_type' => $file->getClientMimeType(),
+            'user_id' => Auth::id(),
+        ]);
+
+        return $attachment;
     }
+
+    throw new Exception('File not found in the request.');
+}
 
     /**
      * Delete an attachment (Delete).

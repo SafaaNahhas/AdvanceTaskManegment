@@ -3,13 +3,8 @@
 namespace App\Http\Controllers\TaskManagment;
 
 use App\Models\Task;
-use Illuminate\Http\Request;
-use App\Models\TaskStatusUpdate;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use App\Services\TaskStatusUpdateService;
-use Illuminate\Support\Facades\Validator;
 use App\Http\Requests\TaskRequest\UpdateTaskStatusRequest;
 
 class TaskStatusUpdateController extends Controller

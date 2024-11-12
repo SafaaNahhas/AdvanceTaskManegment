@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Carbon\Carbon;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,10 @@ class TaskService
         $this->authorize('create', Task::class);
 
         try {
+        $existingTask = Task::where('title', $data['title'])->first();
+        if ($existingTask) {
+            throw new BadRequestHttpException('A task with this title already exists.');
+        }
             // Begin Transaction
             DB::beginTransaction();
 
@@ -51,7 +56,7 @@ class TaskService
             DB::commit();
 
             // Clear relevant cache
-            $this->clearCache();
+            // $this->clearCache();
 
             return new TaskResource($task->load([ 'dependencies','creator']));
         } catch (\Exception $e) {
@@ -91,6 +96,7 @@ class TaskService
             });
 
             if (!$task) {
+                Log::error("Task with id $id not found in the database");
                 throw new ModelNotFoundException('Task not found');
 
             }
@@ -139,6 +145,9 @@ class TaskService
                 if (isset($filters['assigned_to'])) {
                     $query->where('assigned_to', $filters['assigned_to']);
                 }
+                if (isset($filters['created_by'])) {
+                    $query->where('created_by', $filters['created_by']);
+                }
 
                 if (isset($filters['due_date'])) {
                     $query->whereDate('due_date', $filters['due_date']);
@@ -167,7 +176,6 @@ class TaskService
     /**
      * Generate daily tasks report.
      *
-     * @return \Illuminate\Http\JsonResponse
      */
     public function dailyTasksReport()
     {
@@ -178,7 +186,9 @@ class TaskService
 
             $tasks = Task::whereDate('created_at', $today)->get();
 
-            return response()->json($tasks);
+            // return response()->json($tasks);
+            return $tasks;
+
         } catch (\Exception $e) {
             Log::error('Error generating daily tasks report: ' . $e->getMessage());
         throw new BadRequestHttpException('Failed to show dailyTasksReport: ' . $e->getMessage());
@@ -203,7 +213,6 @@ public function blockedTasks(string $today)
                         ->where('due_date', '<', $today)
                         ->with(['dependencies:id,title']);
 
-            // سجّل الاستعلام
             Log::info('Query for blocked tasks: ' . $query->toSql());
 
             return $query->get();
@@ -392,6 +401,7 @@ public function blockedTasks(string $today)
               $this->authorize('assignTask', $task);
 
             $task->assigned_to = $userId;
+
             $task->save();
 
 
@@ -405,42 +415,48 @@ public function blockedTasks(string $today)
         }
     }
 
-    /**
-     * Reassign a task to a different user.
-     *
-     * @param int $id
-     * @param int $userId
-     * @return \Illuminate\Http\JsonResponse
-     * @throws \Exception
-     */
 
     public function reassignTask(int $id, int $userId)
-    {
+{
+    try {
+        $task = Task::find($id);
+        if (!$task) {
+            throw new ModelNotFoundException('Task not found');
+        }
 
-        try {
-            // Find the task first
-            $task = Task::find($id);
-            if (!$task) {
-                throw new ModelNotFoundException('Task not found');
+        $this->authorize('assignTask', $task);
+
+        $currentDate = Carbon::now();
+        $dueDate = Carbon::parse($task->due_date);
+        $daysRemaining = $currentDate->diffInDays($dueDate, false);
+
+        if (
+            (($task->priority == 'High' && $daysRemaining <= 10) ||
+             ($task->priority == 'Medium' && $daysRemaining <= 7) ||
+             ($task->priority == 'Low' && $daysRemaining <= 5)) &&
+            $daysRemaining >= 2
+        ) {
+            $newUser = User::find($userId);
+            if (!$newUser || $newUser->hasRole('Admin')) {
+                throw new BadRequestHttpException('The user cannot be reassigned as they are an Admin or not found.');
             }
-            $this->authorize('assignTask', $task);
-            // Check the previous assigned user (for logging or other purposes, optional)
+
             $previousUserId = $task->assigned_to;
 
-            // Update the task with the new assigned user, effectively unlinking the previous user
             $task->assigned_to = $userId;
             $task->save();
 
-            // Clear relevant cache
             $this->clearCache();
 
-            // Return success response
             return response()->json(['message' => 'Task reassigned successfully'], 200);
-        } catch (\Exception $e) {
-            Log::error('Error reassigning task: ' . $e->getMessage());
-            throw new BadRequestHttpException('Failed to reassignTask: ' . $e->getMessage());
+        } else {
+            throw new BadRequestHttpException('Cannot reassign task due to insufficient time remaining.');
         }
+    } catch (\Exception $e) {
+        Log::error('Error reassigning task: ' . $e->getMessage());
+        throw new BadRequestHttpException('Failed to reassign task: ' . $e->getMessage());
     }
+}
     /**
      * Update the specified task with new data.
      * The method uses database transactions to ensure atomicity of the operation.

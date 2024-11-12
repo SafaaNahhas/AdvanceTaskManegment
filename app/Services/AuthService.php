@@ -48,7 +48,7 @@ class AuthService
         $user->password=Hash::make($data['password']);
         $user->save();
         $token = Auth::login($user);
-        $csrfToken = csrf_token(); 
+        $csrfToken = csrf_token();
 
         return [
             'message' => 'User created successfully',

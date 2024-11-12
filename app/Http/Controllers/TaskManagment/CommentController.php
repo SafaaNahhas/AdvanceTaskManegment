@@ -17,29 +17,6 @@ use App\Http\Requests\CommentRequest\UpdateCommentRequest;
 
 class CommentController extends Controller
 {
-//    public function store(Request $request, $taskId)
-//    {
-//        $validator = Validator::make($request->all(), [
-//            'comment' => 'required|string',
-//        ]);
-
-//        if ($validator->fails()) {
-//            return response()->json($validator->errors(), 422);
-//        }
-
-//        $task = Task::find($taskId);
-
-//        if (!$task) {
-//            return response()->json(['error' => 'المهمة غير موجودة'], 404);
-//        }
-
-//        $comment = $task->comments()->create([
-//            'comment'  => $request->comment,
-//            'user_id'  => Auth::id(),
-//        ]);
-
-//        return response()->json($comment, 201);
-//    }
  /**
      * The comment service instance.
      *
